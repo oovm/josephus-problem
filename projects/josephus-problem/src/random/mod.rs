@@ -8,6 +8,12 @@ pub struct RandomKill {
     seed: u64,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct KillMan {
+    pub id: usize,
+    pub steps: usize,
+}
+
 impl RandomKill {
     pub fn new(partners: usize, kill_rate: f64) -> Self {
         RandomKill {
@@ -27,18 +33,18 @@ impl RandomKill {
 
 pub struct RandomKillState {
     rng: SmallRng,
+    living: Vec<usize>,
     kill_rate: f64,
-    partners: Vec<usize>,
     killer_index: usize,
     killer_steps: usize,
 }
 
 impl IntoIterator for RandomKill {
-    type Item = usize;
+    type Item = KillMan;
     type IntoIter = RandomKillState;
 
     fn into_iter(self) -> Self::IntoIter {
-        let mut rng = SmallRng::seed_from_u64(self.seed);
+        let rng = SmallRng::seed_from_u64(self.seed);
         let mut partners = Vec::with_capacity(self.partners);
         for i in 0..self.partners {
             partners.push(i);
@@ -46,43 +52,37 @@ impl IntoIterator for RandomKill {
         RandomKillState {
             rng,
             kill_rate: self.kill_rate,
-            partners,
+            living: partners,
             killer_index: 0,
             killer_steps: 0,
         }
     }
 }
 
-impl RandomKillState {
-    pub fn survivor(&self) -> usize {
-        assert_eq!(self.partners.len(), 1, "survivor() called before iteration finished");
-        unsafe {
-            *self.partners.get_unchecked(0)
-        }
-    }
-    pub fn killer_steps(&self) -> usize {
-        self.killer_steps
-    }
-}
-
 impl Iterator for RandomKillState {
-    type Item = usize;
+    type Item = KillMan;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.partners.len() == 1 {
+        if self.living.is_empty() {
             return None;
         }
         self.killer_steps += 1;
         if self.rng.gen_bool(self.kill_rate) {
-            let victim_index = (self.killer_index + 1) % self.partners.len();
-            let victim = self.partners.remove(victim_index);
-            if victim_index < self.killer_index {
-                self.killer_index -= 1;
+            let victim = self.living.remove(self.killer_index);
+            match self.living.len() {
+                // next round return None
+                0 => {
+                }
+                _ => {
+                    self.killer_index %= self.living.len();
+                }
             }
-            self.killer_steps = 0;
-            Some(victim)
+            Some(KillMan {
+                id: victim,
+                steps: self.killer_steps.saturating_sub(1),
+            })
         } else {
-            self.killer_index = (self.killer_index + 1) % self.partners.len();
+            self.killer_index = (self.killer_index + 1) % self.living.len();
             self.next()
         }
     }
