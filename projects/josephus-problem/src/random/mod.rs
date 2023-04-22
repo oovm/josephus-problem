@@ -1,9 +1,8 @@
-use rand::prelude::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{prelude::SmallRng, Rng, SeedableRng};
 
 #[derive(Copy, Clone, Debug)]
 pub struct RandomKill {
-    kill_rate: f64,
+    kill_rate: f32,
     partners: usize,
     seed: u64,
 }
@@ -15,12 +14,8 @@ pub struct KillMan {
 }
 
 impl RandomKill {
-    pub fn new(partners: usize, kill_rate: f64) -> Self {
-        RandomKill {
-            kill_rate,
-            partners,
-            seed: rand::random(),
-        }
+    pub fn new(partners: usize, kill_rate: f32) -> Self {
+        RandomKill { kill_rate, partners, seed: rand::random() }
     }
     pub fn set_seed(&mut self, seed: u64) {
         self.seed = seed;
@@ -34,7 +29,7 @@ impl RandomKill {
 pub struct RandomKillState {
     rng: SmallRng,
     living: Vec<usize>,
-    kill_rate: f64,
+    kill_rate: f32,
     killer_index: usize,
     killer_steps: usize,
 }
@@ -49,13 +44,7 @@ impl IntoIterator for RandomKill {
         for i in 0..self.partners {
             partners.push(i);
         }
-        RandomKillState {
-            rng,
-            kill_rate: self.kill_rate,
-            living: partners,
-            killer_index: 0,
-            killer_steps: 0,
-        }
+        RandomKillState { rng, kill_rate: self.kill_rate, living: partners, killer_index: 0, killer_steps: 0 }
     }
 }
 
@@ -67,21 +56,18 @@ impl Iterator for RandomKillState {
             return None;
         }
         self.killer_steps += 1;
-        if self.rng.gen_bool(self.kill_rate) {
+        if self.rng.gen_bool(self.kill_rate as f64) {
             let victim = self.living.remove(self.killer_index);
             match self.living.len() {
                 // next round return None
-                0 => {
-                }
+                0 => {}
                 _ => {
                     self.killer_index %= self.living.len();
                 }
             }
-            Some(KillMan {
-                id: victim,
-                steps: self.killer_steps.saturating_sub(1),
-            })
-        } else {
+            Some(KillMan { id: victim, steps: self.killer_steps.saturating_sub(1) })
+        }
+        else {
             self.killer_index = (self.killer_index + 1) % self.living.len();
             self.next()
         }

@@ -12,7 +12,6 @@ edition = "2021"
 [dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }
 tracing = "0.1.37"
-crossbeam-skiplist = "0.1.1"
 
 [dev-dependencies]
 
